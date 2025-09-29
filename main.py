@@ -50,8 +50,8 @@ def enviar_recordatorios():
         cur = conn.cursor()
         try:
             ahora = datetime.now()
-            ventana_inicio = ahora - timedelta(minutes=5)  # porque el cron correrá cada 5 minutos
-            ventana_fin = ahora + timedelta(minutes=5)  # porque el cron correrá cada 5 minutos
+            ventana_inicio = ahora - timedelta(minutes=1)  # porque el cron correrá cada 5 minutos
+            ventana_fin = ahora + timedelta(minutes=1)  # porque el cron correrá cada 5 minutos
 
             # Buscar tareas que deben notificarse ahora (JOIN con users)
             cur.execute("""
