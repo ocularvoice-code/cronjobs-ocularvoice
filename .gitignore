@@ -1,0 +1,31 @@
+# Python caches and artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+venv/
+.env*/
+.venv/
+ENV/
+
+# Environment & secrets
+.env
+.env.local
+.env.*
+
+# Tooling and logs
+*.log
+.python-version
+coverage/
+.mypy_cache/
+.pytest_cache/
+
+# Vercel local state
+.vercel/
+
+# OS files
+.DS_Store
+Thumbs.db
