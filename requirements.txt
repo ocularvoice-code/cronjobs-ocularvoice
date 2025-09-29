@@ -4,6 +4,7 @@ click==8.3.0
 fastapi==0.117.1
 h11==0.16.0
 idna==3.10
+mangum==0.19.0
 psycopg2-binary==2.9.10
 pydantic==2.11.9
 pydantic_core==2.33.2

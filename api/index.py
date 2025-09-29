@@ -1,6 +1,5 @@
-from main import app as fastapi_app
+from main import app
+from mangum import Mangum
 
-# Expose FastAPI app for Vercel's Python runtime entrypoint
-app = fastapi_app
-
-__all__ = ["app"]
+# Convertir FastAPI a handler de Lambda
+handler = Mangum(app)
