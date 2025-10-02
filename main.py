@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import smtplib
 from email.mime.text import MIMEText
 import os
@@ -7,9 +7,25 @@ import os
 from fastapi import FastAPI
 from dotenv import load_dotenv
 
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from config import get_connection, release_connection, close_pool
 
 load_dotenv()
+
+
+def _load_timezone():
+    tz_name = os.getenv("APP_TIMEZONE", "UTC")
+    try:
+        return tz_name, ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        fallback = "UTC"
+        print(f"⚠️  Invalid APP_TIMEZONE='{tz_name}', defaulting to UTC")
+        return fallback, ZoneInfo(fallback)
+
+
+TZ_NAME, LOCAL_TZ = _load_timezone()
+STORE_TIMESTAMPS_AS_UTC = os.getenv("STORE_TIMESTAMPS_AS_UTC", "false").lower() in {"1", "true", "yes"}
 
 
 @asynccontextmanager
@@ -49,9 +65,26 @@ def enviar_recordatorios():
     try:
         cur = conn.cursor()
         try:
-            ahora = datetime.now()
+            ahora = datetime.now(timezone.utc).astimezone(LOCAL_TZ)
             ventana_inicio = ahora - timedelta(minutes=1)  # porque el cron correrá cada 5 minutos
             ventana_fin = ahora + timedelta(minutes=1)  # porque el cron correrá cada 5 minutos
+
+            if STORE_TIMESTAMPS_AS_UTC:
+                ventana_inicio_db = ventana_inicio.astimezone(timezone.utc)
+                ventana_fin_db = ventana_fin.astimezone(timezone.utc)
+            else:
+                ventana_inicio_db = ventana_inicio.replace(tzinfo=None)
+                ventana_fin_db = ventana_fin.replace(tzinfo=None)
+
+            print(
+                "🕒 Ventana de recordatorios:",
+                {
+                    "timezone": TZ_NAME,
+                    "ventana_inicio": ventana_inicio.isoformat(),
+                    "ventana_fin": ventana_fin.isoformat(),
+                    "store_as_utc": STORE_TIMESTAMPS_AS_UTC,
+                },
+            )
 
             # Buscar tareas que deben notificarse ahora (JOIN con users)
             cur.execute("""
@@ -60,7 +93,7 @@ def enviar_recordatorios():
                 FROM tasks t
                 JOIN users u ON t.id_user = u.id
                 WHERE t.recordatorio_fecha BETWEEN %s AND %s
-            """, (ventana_inicio, ventana_fin))
+            """, (ventana_inicio_db, ventana_fin_db))
 
             tareas = cur.fetchall()
 
