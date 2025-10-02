@@ -65,45 +65,36 @@ def enviar_recordatorios():
     try:
         cur = conn.cursor()
         try:
-            ahora = datetime.now(timezone.utc).astimezone(LOCAL_TZ)
-            ventana_inicio = ahora - timedelta(minutes=1)  # porque el cron correrá cada 5 minutos
-            ventana_fin = ahora + timedelta(minutes=1)  # porque el cron correrá cada 5 minutos
-
-            if STORE_TIMESTAMPS_AS_UTC:
-                ventana_inicio_db = ventana_inicio.astimezone(timezone.utc)
-                ventana_fin_db = ventana_fin.astimezone(timezone.utc)
-            else:
-                ventana_inicio_db = ventana_inicio.replace(tzinfo=None)
-                ventana_fin_db = ventana_fin.replace(tzinfo=None)
+            ahora = datetime.now()
+            ventana_inicio = ahora - timedelta(minutes=0)
+            ventana_fin = ahora + timedelta(minutes=1)
 
             print(
                 "🕒 Ventana de recordatorios:",
                 {
-                    "timezone": TZ_NAME,
                     "ventana_inicio": ventana_inicio.isoformat(),
                     "ventana_fin": ventana_fin.isoformat(),
-                    "store_as_utc": STORE_TIMESTAMPS_AS_UTC,
                 },
             )
 
-            # Buscar tareas que deben notificarse ahora (JOIN con users)
             cur.execute("""
                 SELECT t.id, t.descripcion, t.fecha_hora_asignada, t.recordatorio_fecha,
-                    u.email, u.name
+                       u.email, u.name
                 FROM tasks t
                 JOIN users u ON t.id_user = u.id
                 WHERE t.recordatorio_fecha BETWEEN %s AND %s
-            """, (ventana_inicio_db, ventana_fin_db))
+            """, (ventana_inicio, ventana_fin))
 
             tareas = cur.fetchall()
 
             for tarea in tareas:
-                id_t, descripcion, fecha_hora, avisar_horas, email, nombre = tarea
+                id_t, descripcion, fecha_hora, recordatorio_fecha, email, nombre = tarea
                 enviar_email(
                     email,
                     "📌 Recordatorio de tarea",
                     f"Hola {nombre},\n\n"
-                    f"Te recordamos que tu tarea '{descripcion}' es el {fecha_hora}.\n"
+                    f"Este es tu recordatorio programado ({recordatorio_fecha}).\n"
+                    f"Tu tarea es '{descripcion}' el {fecha_hora}.\n\n"
                     "¡Éxitos!"
                 )
                 enviadas += 1
