@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
 import os
@@ -15,17 +15,16 @@ load_dotenv()
 
 
 def _load_timezone():
-    tz_name = os.getenv("APP_TIMEZONE", "UTC")
+    tz_name = os.getenv("APP_TIMEZONE", "America/Bogota")  # por defecto Bogotá
     try:
         return tz_name, ZoneInfo(tz_name)
     except ZoneInfoNotFoundError:
-        fallback = "UTC"
-        print(f"⚠️  Invalid APP_TIMEZONE='{tz_name}', defaulting to UTC")
+        fallback = "America/Bogota"
+        print(f"⚠️  Invalid APP_TIMEZONE='{tz_name}', defaulting to {fallback}")
         return fallback, ZoneInfo(fallback)
 
 
 TZ_NAME, LOCAL_TZ = _load_timezone()
-STORE_TIMESTAMPS_AS_UTC = os.getenv("STORE_TIMESTAMPS_AS_UTC", "false").lower() in {"1", "true", "yes"}
 
 
 @asynccontextmanager
@@ -44,6 +43,7 @@ PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
+
 def enviar_email(destinatario, asunto, mensaje):
     if not EMAIL or not PASSWORD:
         raise RuntimeError("SMTP credentials missing. Set SMTP_EMAIL and SMTP_PASSWORD env vars.")
@@ -58,6 +58,7 @@ def enviar_email(destinatario, asunto, mensaje):
         server.sendmail(EMAIL, destinatario, msg.as_string())
         print(f"📧 Correo enviado a {destinatario}")
 
+
 @app.get("/enviar-recordatorios")
 def enviar_recordatorios():
     enviadas = 0
@@ -65,13 +66,17 @@ def enviar_recordatorios():
     try:
         cur = conn.cursor()
         try:
-            ahora = datetime.now()
-            ventana_inicio = ahora - timedelta(minutes=0)
-            ventana_fin = ahora + timedelta(minutes=1)
+            # Hora local (ej. Bogotá)
+            ahora = datetime.now(LOCAL_TZ).replace(tzinfo=None)
+
+            # Ventana de búsqueda (puedes ajustarla a más minutos si necesitas tolerancia)
+            ventana_inicio = ahora - timedelta(minutes=5)
+            ventana_fin = ahora + timedelta(minutes=5)
 
             print(
                 "🕒 Ventana de recordatorios:",
                 {
+                    "timezone": TZ_NAME,
                     "ventana_inicio": ventana_inicio.isoformat(),
                     "ventana_fin": ventana_fin.isoformat(),
                 },
